@@ -21,7 +21,13 @@ router.post('/admin', selfHostedMiddleware, async (req, res, next) => {
 
         try {
             const user = await db.createAdmin(data.email, data.password);
-            res.status(200).json({ user });
+            // Explicitly include apiToken in response (virtual field may not be auto-serialized)
+            res.status(200).json({ 
+                user: {
+                    ...user.toJSON(),
+                    apiToken: user.apiToken
+                }
+            });
         } catch (error) {
             managedError(error, req, res);
         }
