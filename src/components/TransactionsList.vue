@@ -35,6 +35,10 @@
                 <span v-show="txStatus(item) == 'unknown'">Unkown Transaction Status</span>
                 <span v-show="txStatus(item) == 'syncing'">Indexing Transaction...</span>
             </v-tooltip>
+            <v-chip v-if="isExecuteTx(item)" size="x-small" color="primary" variant="tonal" class="mr-1" density="compact">
+                <v-icon size="x-small" class="mr-1">mdi-layers-triple</v-icon>
+                ExecuteTx
+            </v-chip>
             <Hash-Link :type="'transaction'" :hash="item.hash" :xsHash="true" :key="item.hash"/>
         </template>
         <template v-slot:item.method="{ item }">
@@ -183,6 +187,11 @@ const txStatus = (item) => {
         return 'succeeded';
 
     return 'failed';
+};
+
+// Check if transaction is an ExecuteTx (Native Rollup batch transaction, type 5)
+const isExecuteTx = (item) => {
+    return item && (item.type === 5 || item.type === '0x5');
 };
 
 watch(currentOptions, (newOptions, oldOptions) => {

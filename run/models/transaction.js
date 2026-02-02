@@ -1182,6 +1182,55 @@ module.exports = (sequelize, DataTypes) => {
             return this.getDataValue('maxFeePerBlobGas') || this.getDataValue('raw.maxFeePerBlobGas');
         }
     },
+    // ExecuteTx (type 5) specific fields for Native Rollup transactions
+    preStateHash: {
+        type: DataTypes.VIRTUAL,
+        get() {
+            const raw = this.getDataValue('raw');
+            return raw ? raw.preStateHash : null;
+        }
+    },
+    witnessSize: {
+        type: DataTypes.VIRTUAL,
+        get() {
+            const raw = this.getDataValue('raw');
+            return raw ? raw.witnessSize : null;
+        }
+    },
+    withdrawalsSize: {
+        type: DataTypes.VIRTUAL,
+        get() {
+            const raw = this.getDataValue('raw');
+            return raw ? raw.withdrawalsSize : null;
+        }
+    },
+    executeCoinbase: {
+        type: DataTypes.VIRTUAL,
+        get() {
+            const raw = this.getDataValue('raw');
+            return raw ? raw.coinbase : null;
+        }
+    },
+    executeBlockNumber: {
+        type: DataTypes.VIRTUAL,
+        get() {
+            const raw = this.getDataValue('raw');
+            return raw ? (raw.executeBlockNumber || raw.targetBlockNumber) : null;
+        }
+    },
+    executeTimestamp: {
+        type: DataTypes.VIRTUAL,
+        get() {
+            const raw = this.getDataValue('raw');
+            return raw ? (raw.executeTimestamp || raw.targetTimestamp) : null;
+        }
+    },
+    isExecuteTx: {
+        type: DataTypes.VIRTUAL,
+        get() {
+            return this.getDataValue('type') === 5;
+        }
+    },
     requestId: DataTypes.INTEGER
   }, {
     hooks: {

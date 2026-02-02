@@ -475,6 +475,112 @@
       </v-card-text>
     </v-card>
 
+    <!-- ExecuteTx Details Card (for Native Rollup transactions) -->
+    <v-card class="mb-6" v-if="isExecuteTx && executeTxFields">
+      <v-card-title class="text-subtitle-1 font-weight-bold">
+        <v-icon size="small" color="primary" class="mr-2">mdi-layers-triple</v-icon>
+        ExecuteTx Details (Native Rollup)
+      </v-card-title>
+      <v-card-text class="pa-0">
+        <v-list density="compact" class="transaction-list">
+          <!-- Pre-State Hash -->
+          <v-list-item v-if="executeTxFields.preStateHash" class="d-flex flex-column flex-sm-row">
+            <template v-slot:prepend>
+              <div class="text-subtitle-2 font-weight-medium text-grey-darken-1" style="width: 220px;">
+                <v-icon size="small" color="grey" class="mr-1" v-tooltip="'The pre-state root hash before execution'">mdi-help-circle-outline</v-icon>
+                Pre-State Hash:
+              </div>
+            </template>
+            <v-list-item-title class="text-body-2 text-truncate font-weight-mono">
+              {{ executeTxFields.preStateHash }}
+            </v-list-item-title>
+          </v-list-item>
+
+          <!-- Execute Coinbase -->
+          <v-list-item v-if="executeTxFields.executeCoinbase" class="d-flex flex-column flex-sm-row">
+            <template v-slot:prepend>
+              <div class="text-subtitle-2 font-weight-medium text-grey-darken-1" style="width: 220px;">
+                <v-icon size="small" color="grey" class="mr-1" v-tooltip="'The coinbase address for the executed block'">mdi-help-circle-outline</v-icon>
+                Execute Coinbase:
+              </div>
+            </template>
+            <v-list-item-title class="text-body-2 text-truncate">
+              <Hash-Link :type="'address'" :hash="executeTxFields.executeCoinbase" :fullHash="true" />
+            </v-list-item-title>
+          </v-list-item>
+
+          <!-- Execute Block Number -->
+          <v-list-item v-if="executeTxFields.executeBlockNumber" class="d-flex flex-column flex-sm-row">
+            <template v-slot:prepend>
+              <div class="text-subtitle-2 font-weight-medium text-grey-darken-1" style="width: 220px;">
+                <v-icon size="small" color="grey" class="mr-1" v-tooltip="'The target block number being executed'">mdi-help-circle-outline</v-icon>
+                Execute Block Number:
+              </div>
+            </template>
+            <v-list-item-title class="text-body-2">
+              {{ commify(executeTxFields.executeBlockNumber) }}
+            </v-list-item-title>
+          </v-list-item>
+
+          <!-- Execute Timestamp -->
+          <v-list-item v-if="executeTxFields.executeTimestamp" class="d-flex flex-column flex-sm-row">
+            <template v-slot:prepend>
+              <div class="text-subtitle-2 font-weight-medium text-grey-darken-1" style="width: 220px;">
+                <v-icon size="small" color="grey" class="mr-1" v-tooltip="'The target timestamp for execution'">mdi-help-circle-outline</v-icon>
+                Execute Timestamp:
+              </div>
+            </template>
+            <v-list-item-title class="text-body-2">
+              {{ $dt.shortDate(executeTxFields.executeTimestamp * 1000) }}
+            </v-list-item-title>
+          </v-list-item>
+
+          <v-divider class="mx-4"></v-divider>
+
+          <!-- Witness Size -->
+          <v-list-item class="d-flex flex-column flex-sm-row mt-2">
+            <template v-slot:prepend>
+              <div class="text-subtitle-2 font-weight-medium text-grey-darken-1" style="width: 220px;">
+                <v-icon size="small" color="grey" class="mr-1" v-tooltip="'Size of the state witness data in bytes'">mdi-help-circle-outline</v-icon>
+                Witness Size:
+              </div>
+            </template>
+            <v-list-item-title class="text-body-2">
+              {{ executeTxFields.witnessSize !== undefined ? commify(executeTxFields.witnessSize) + ' bytes' : '-' }}
+            </v-list-item-title>
+          </v-list-item>
+
+          <!-- Withdrawals Size -->
+          <v-list-item class="d-flex flex-column flex-sm-row">
+            <template v-slot:prepend>
+              <div class="text-subtitle-2 font-weight-medium text-grey-darken-1" style="width: 220px;">
+                <v-icon size="small" color="grey" class="mr-1" v-tooltip="'Size of the withdrawals data in bytes'">mdi-help-circle-outline</v-icon>
+                Withdrawals Size:
+              </div>
+            </template>
+            <v-list-item-title class="text-body-2">
+              {{ executeTxFields.withdrawalsSize !== undefined ? commify(executeTxFields.withdrawalsSize) + ' bytes' : '-' }}
+            </v-list-item-title>
+          </v-list-item>
+
+          <!-- Blob Hashes (if any) -->
+          <v-list-item v-if="executeTxFields.blobHashes && executeTxFields.blobHashes.length > 0" class="d-flex flex-column flex-sm-row">
+            <template v-slot:prepend>
+              <div class="text-subtitle-2 font-weight-medium text-grey-darken-1" style="width: 220px;">
+                <v-icon size="small" color="grey" class="mr-1" v-tooltip="'Versioned blob hashes referenced by this transaction'">mdi-help-circle-outline</v-icon>
+                Blob Hashes ({{ executeTxFields.blobHashes.length }}):
+              </div>
+            </template>
+            <v-list-item-title class="text-body-2">
+              <div v-for="(blobHash, index) in executeTxFields.blobHashes" :key="index" class="text-truncate font-weight-mono mb-1">
+                {{ blobHash }}
+              </div>
+            </v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </v-card-text>
+    </v-card>
+
     <!-- Function Call Card -->
     <v-card class="mb-6" v-if="(transaction.to && transaction.data && transaction.data !== '0x') || (transaction.receipt && transaction.receipt.contractAddress)">
       <v-card-item>
@@ -638,10 +744,33 @@ const calculateTxnSavings = () => {
 const txTypeNames = {
   0: 'Legacy',
   1: 'EIP-2930',
-  2: 'EIP-1559'
+  2: 'EIP-1559',
+  3: 'EIP-4844',
+  4: 'EIP-7702',
+  5: 'ExecuteTx'
 };
 
 const getTxnTypeName = (type) => txTypeNames[type] || 'Unknown';
+
+// Check if transaction is an ExecuteTx (Native Rollup batch transaction)
+const isExecuteTx = computed(() => {
+  return props.transaction.type === 5 || props.transaction.type === '0x5';
+});
+
+// Get ExecuteTx specific fields from raw transaction data
+const executeTxFields = computed(() => {
+  if (!isExecuteTx.value) return null;
+  const raw = props.transaction.raw || {};
+  return {
+    preStateHash: raw.preStateHash,
+    witnessSize: raw.witnessSize,
+    withdrawalsSize: raw.withdrawalsSize,
+    executeCoinbase: raw.coinbase,  // Renamed to avoid conflict with block coinbase
+    executeBlockNumber: raw.executeBlockNumber || raw.blockNumber,  // ExecuteTx target block number
+    executeTimestamp: raw.executeTimestamp || raw.timestamp,  // ExecuteTx target timestamp
+    blobHashes: raw.blobHashes || props.transaction.blobVersionedHashes
+  };
+});
 </script>
 
 <style scoped>
