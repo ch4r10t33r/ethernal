@@ -563,6 +563,19 @@
             </v-list-item-title>
           </v-list-item>
 
+          <!-- Anchor Size (EIP-8079) -->
+          <v-list-item class="d-flex flex-column flex-sm-row">
+            <template v-slot:prepend>
+              <div class="text-subtitle-2 font-weight-medium text-grey-darken-1" style="width: 220px;">
+                <v-icon size="small" color="grey" class="mr-1" v-tooltip="'Size of the anchor data for L1→L2 messaging (EIP-8079)'">mdi-help-circle-outline</v-icon>
+                Anchor Size:
+              </div>
+            </template>
+            <v-list-item-title class="text-body-2">
+              {{ executeTxFields.anchorSize !== undefined ? commify(executeTxFields.anchorSize) + ' bytes' : '-' }}
+            </v-list-item-title>
+          </v-list-item>
+
           <!-- Blob Hashes (if any) -->
           <v-list-item v-if="executeTxFields.blobHashes && executeTxFields.blobHashes.length > 0" class="d-flex flex-column flex-sm-row">
             <template v-slot:prepend>
@@ -765,6 +778,7 @@ const executeTxFields = computed(() => {
     preStateHash: raw.preStateHash,
     witnessSize: raw.witnessSize,
     withdrawalsSize: raw.withdrawalsSize,
+    anchorSize: raw.anchorSize,  // EIP-8079: Anchor size for L1->L2 messaging
     executeCoinbase: raw.coinbase,  // Renamed to avoid conflict with block coinbase
     executeBlockNumber: raw.executeBlockNumber || raw.blockNumber,  // ExecuteTx target block number
     executeTimestamp: raw.executeTimestamp || raw.timestamp,  // ExecuteTx target timestamp

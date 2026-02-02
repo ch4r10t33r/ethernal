@@ -1204,6 +1204,14 @@ module.exports = (sequelize, DataTypes) => {
             return raw ? raw.withdrawalsSize : null;
         }
     },
+    // EIP-8079: Anchor size for L1->L2 messaging
+    anchorSize: {
+        type: DataTypes.VIRTUAL,
+        get() {
+            const raw = this.getDataValue('raw');
+            return raw ? raw.anchorSize : null;
+        }
+    },
     executeCoinbase: {
         type: DataTypes.VIRTUAL,
         get() {
