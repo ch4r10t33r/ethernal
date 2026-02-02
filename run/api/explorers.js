@@ -1348,7 +1348,9 @@ router.get('/search', async (req, res, next) => {
         if (!isSelfHosted() && data.domain == `app.${getAppDomain()}`)
             return res.sendStatus(200);
 
-        if (data.domain == getAppDomain())
+        // For non-self-hosted, skip if domain exactly matches APP_DOMAIN (main site)
+        // For self-hosted, we want to check if there's an explorer mapped to this domain
+        if (!isSelfHosted() && data.domain == getAppDomain())
             return res.sendStatus(200);
 
         if (data.domain.endsWith(getAppDomain())) {

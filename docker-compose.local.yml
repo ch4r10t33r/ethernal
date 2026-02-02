@@ -1,0 +1,151 @@
+networks:
+  ethernal:
+    driver: bridge  
+
+volumes:
+  db:
+    driver: local
+  redis:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local
+
+services:
+  postgres:
+    networks:
+      - ethernal
+    image: timescale/timescaledb:2.11.1-pg14
+    container_name: postgres
+    restart: always
+    env_file: .env.postgres.prod
+    volumes: 
+      - db:/var/lib/postgresql/data
+      - ./postgresql.conf:/etc/postgresql/postgresql.conf
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+
+  soketi:
+    image: quay.io/soketi/soketi:1.6.1-16-debian
+    container_name: soketi
+    env_file: .env.soketi.prod
+    networks:
+      - ethernal
+
+  redis:
+    networks:
+      - ethernal
+    image: redis:6.2-alpine
+    container_name: redis
+    restart: always
+    command: redis-server --save 20 1 --loglevel warning
+    volumes: 
+      - redis:/data
+
+  frontend:
+    networks:
+      - ethernal
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      target: prod
+      args:
+        VITE_SOKETI_PORT: 443
+        VITE_SOKETI_KEY: app-key
+        VITE_IS_SELF_HOSTED: "true"
+    image: ethernal-frontend:local
+    container_name: frontend
+    restart: always
+
+  backend:
+    networks:
+      - ethernal
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    image: ethernal-backend:local
+    container_name: backend
+    depends_on:
+      - postgres
+      - redis
+    restart: always
+    env_file: ./run/.env.prod
+
+  high_priority_worker:
+    networks:
+      - ethernal
+    container_name: highPriority
+    depends_on:
+      - postgres
+      - redis
+    restart: always
+    image: ethernal-backend:local
+    command: node workers/highPriority.js
+    env_file: ./run/.env.prod
+
+  medium_priority_worker:
+    networks:
+      - ethernal
+    container_name: mediumPriority
+    depends_on:
+      - postgres
+      - redis
+    restart: always
+    image: ethernal-backend:local
+    command: node workers/mediumPriority.js
+    env_file: ./run/.env.prod
+
+  low_priority_worker:
+    networks:
+      - ethernal
+    container_name: lowPriority
+    depends_on:
+      - postgres
+      - redis
+    restart: always
+    image: ethernal-backend:local
+    command: node workers/lowPriority.js
+    env_file: ./run/.env.prod
+
+  pm2:
+    networks:
+      - ethernal
+    build:
+      context: .
+      dockerfile: Dockerfile.pm2
+      target: prod
+    image: ethernal-pm2:local
+    container_name: pm2
+    env_file: ./pm2-server/.env.prod
+    depends_on:
+      - backend
+
+  pgbouncer:
+    image: edoburu/pgbouncer
+    container_name: pgbouncer
+    env_file: ./pgbouncer/.env.pgbouncer.prod
+    ports:
+      - "5433:5433"
+    volumes:
+      - ./pgbouncer/:/etc/pgbouncer:ro
+    depends_on:
+      - postgres
+    networks:
+      - ethernal
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
+    networks:
+      - ethernal
+    depends_on:
+      - backend
+      - frontend
+      - soketi
+    ports:
+      - "${EXPOSED_PORT}:80"
+      - "${EXPOSED_SSL_PORT}:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config

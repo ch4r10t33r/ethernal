@@ -1,3 +1,24 @@
+.PHONY: help start stop nuke update info build-local start-local stop-local update-local nuke-local
+
+help:
+	@echo "Ethernal Docker Management"
+	@echo ""
+	@echo "Remote Images (pulls from Docker Hub):"
+	@echo "  make start     - Pull images and start all services"
+	@echo "  make stop      - Stop all services"
+	@echo "  make update    - Pull latest images and restart"
+	@echo "  make nuke      - Remove everything including volumes"
+	@echo ""
+	@echo "Local Build (builds from source code):"
+	@echo "  make build-local   - Build Docker images from local source"
+	@echo "  make start-local   - Build and start all services locally"
+	@echo "  make stop-local    - Stop locally-built services"
+	@echo "  make update-local  - Rebuild and restart from local source"
+	@echo "  make nuke-local    - Remove everything including volumes"
+	@echo ""
+	@echo "Other:"
+	@echo "  make info      - Show connection info"
+
 start:
 	@if [ -n "$$(docker compose -f docker-compose.prod.yml ps -q)" ]; then \
 		echo "Stopping and removing running containers..."; \
@@ -47,6 +68,64 @@ update:
 	docker compose -f docker-compose.prod.yml --env-file .env.docker-compose.prod exec backend npx sequelize db:migrate
 	@echo "Running sequelize seeds in backend container..."
 	docker compose -f docker-compose.prod.yml --env-file .env.docker-compose.prod exec backend npx sequelize db:seed
+
+# ============ LOCAL BUILD TARGETS ============
+
+build-local:
+	@echo "Building Docker images from local source..."
+	docker compose -f docker-compose.local.yml build
+
+start-local:
+	@if [ -n "$$(docker compose -f docker-compose.local.yml ps -q)" ]; then \
+		echo "Stopping and removing running containers..."; \
+		docker compose -f docker-compose.local.yml --env-file .env.docker-compose.prod down --remove-orphans; \
+	fi
+	@if [ ! -f run/.env.prod ] || [ ! -f pm2-server/.env.prod ] || [ ! -f .env.docker-compose.prod ]; then \
+		echo "Generating environment and config files..."; \
+		bash ./generate-env-files.sh; \
+	else \
+		echo "All environment and config files already exist. Skipping generation."; \
+	fi
+	@echo "Building Docker images from local source..."
+	docker compose -f docker-compose.local.yml build
+	@echo "Starting up the application..."
+	docker compose -f docker-compose.local.yml --env-file .env.docker-compose.prod up -d
+	@echo "Waiting for backend container to be healthy..."
+	@docker compose -f docker-compose.local.yml --env-file .env.docker-compose.prod exec backend sh -c 'until nc -z localhost 8888; do sleep 1; done'
+	@DB_NAME=$$(grep '^DB_NAME=' run/.env.prod | cut -d '=' -f2); \
+	if docker compose -f docker-compose.local.yml exec -T postgres psql -U postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$$DB_NAME'" | grep -q 1; then \
+		echo "Database '$$DB_NAME' already exists. Skipping creation."; \
+	else \
+		docker compose -f docker-compose.local.yml --env-file .env.docker-compose.prod exec backend npx sequelize db:create; \
+	fi
+	@echo "Running sequelize migrations in backend container..."
+	docker compose -f docker-compose.local.yml --env-file .env.docker-compose.prod exec backend npx sequelize db:migrate
+	docker compose -f docker-compose.local.yml --env-file .env.docker-compose.prod exec backend npx sequelize db:seed:all
+	@$(MAKE) info
+
+stop-local:
+	@echo "Stopping and cleaning up all containers and networks..."
+	docker compose -f docker-compose.local.yml down --remove-orphans
+
+update-local:
+	@echo "Rebuilding Docker images from local source..."
+	docker compose -f docker-compose.local.yml build
+	@echo "Recreating containers with new images..."
+	docker compose -f docker-compose.local.yml --env-file .env.docker-compose.prod up -d --force-recreate
+	@echo "Waiting for backend container to be healthy..."
+	@docker compose -f docker-compose.local.yml --env-file .env.docker-compose.prod exec backend sh -c 'until nc -z localhost 8888; do sleep 1; done'
+	@echo "Running sequelize migrations in backend container..."
+	docker compose -f docker-compose.local.yml --env-file .env.docker-compose.prod exec backend npx sequelize db:migrate
+	@echo "Running sequelize seeds in backend container..."
+	docker compose -f docker-compose.local.yml --env-file .env.docker-compose.prod exec backend npx sequelize db:seed
+
+nuke-local:
+	@echo "Nuking everything: containers, networks, volumes, and generated env/config files..."
+	docker compose -f docker-compose.local.yml down --remove-orphans --volumes
+	rm -f .env.prod run/.env.prod pm2-server/.env.prod
+	rm -f pgbouncer/.env.pgbouncer.prod pgbouncer/userlist.txt pgbouncer/pgbouncer.ini
+
+# ============ INFO ============
 
 info:
 	@sh -c '\
