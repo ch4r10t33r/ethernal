@@ -25,8 +25,11 @@ const MAX_BATCH_SIZE = 2000;
  * await enqueue('blockSync', 'sync-block-123', { blockNumber: 123 }, 1);
  */
 const enqueue = (queueName, jobName, data, priority = 1, repeat, delay, unique) => {
+    const queue = queues[queueName];
+    if (!queue)
+        return Promise.resolve();
     const jobId = unique ? jobName : null;
-    return queues[queueName].add(jobName, data, sanitize({ priority, repeat, jobId, delay }));
+    return queue.add(jobName, data, sanitize({ priority, repeat, jobId, delay }));
 };
 
 /**
@@ -47,7 +50,7 @@ const enqueue = (queueName, jobName, data, priority = 1, repeat, delay, unique) 
  * ]);
  */
 const bulkEnqueue = (queueName, jobData, priority = 10, maxBatchSize = MAX_BATCH_SIZE) => {
-    if (!queueName || !jobData || !jobData.length) return;
+    if (!queueName || !jobData || !jobData.length || !queues[queueName]) return;
     const promises = [];
     const batchedJobs = [];
     for (let i = 0; i < jobData.length; i += maxBatchSize)

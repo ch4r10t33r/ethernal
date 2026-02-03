@@ -8,6 +8,7 @@
 const { Explorer, Workspace, RpcHealthCheck, StripeSubscription, StripePlan } = require('../models');
 const PM2 = require('../lib/pm2');
 const logger = require('../lib/logger');
+const { isSelfHosted } = require('../lib/flags');
 
 // Must match SYNC_FAILURE_THRESHOLD in explorer.js
 const SYNC_FAILURE_THRESHOLD = 3;
@@ -60,7 +61,7 @@ module.exports = async job => {
         else if (!explorer && !existingProcess) {
             return 'No process change.';
         }
-        else if (explorer && !explorer.stripeSubscription) {
+        else if (explorer && !isSelfHosted() && !explorer.stripeSubscription) {
             await pm2.delete(explorer.slug);
             return 'Process deleted: no subscription.';
         }
