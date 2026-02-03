@@ -29,6 +29,9 @@ module.exports = async () => {
         const completedJobs = await queue.getCompleted();
         const latestJob = completedJobs[0];
 
+        if (!latestJob) {
+            continue;
+        }
         if (latestJob.timestamp < Date.now() - maxTimeWithoutEnqueuedJob() * 1000) {
             await createIncident(`${queueName} queue issue (no jobs enqueued)`, `Latest job timestamp: ${new Date(latestJob.timestamp).toISOString()}`);
             incidentCreated = true;
@@ -39,9 +42,11 @@ module.exports = async () => {
         const queue = new Queue(queueName, { connection });
         const completedJobs = await queue.getCompleted();
 
-        const averageProcessingTime = completedJobs.reduce((a, b) => {
-            return b && b.finishedOn ? a + (b.finishedOn - b.processedOn) / 1000 : a;
-        }, 0) / completedJobs.length;
+        const averageProcessingTime = completedJobs.length === 0
+            ? 0
+            : completedJobs.reduce((a, b) => {
+                return b && b.finishedOn ? a + (b.finishedOn - b.processedOn) / 1000 : a;
+            }, 0) / completedJobs.length;
 
         const waitingJobCount = await queue.getWaitingCount();
         const delayedJobCount = await queue.getDelayedCount();
