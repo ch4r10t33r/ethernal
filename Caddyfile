@@ -1,3 +1,4 @@
+# Listen on :80 for any host (IP or domain). Required for setup/explorer to work by IP or domain.
 :80 {
     handle /api/* {
       reverse_proxy backend:8888

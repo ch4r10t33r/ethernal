@@ -10,7 +10,14 @@ const app = require('./app.js');
 const port = process.env.PORT || 9090;
 
 const triggerSync = () => {
-    axios.post(`${process.env.ETHERNAL_HOST}/api/explorers/syncExplorers?secret=${process.env.ETHERNAL_SECRET}`)
+    const host = process.env.ETHERNAL_HOST;
+    const secret = process.env.ETHERNAL_SECRET;
+    if (!host || !secret) {
+        console.error('ETHERNAL_HOST or ETHERNAL_SECRET not set. Set them in pm2-server/.env.prod (e.g. ETHERNAL_HOST=http://backend:8888).');
+        setTimeout(triggerSync, 5000);
+        return;
+    }
+    axios.post(`${host}/api/explorers/syncExplorers?secret=${secret}`)
         .then(({ data }) => console.log(data))
         .catch((error) => {
             console.log(`Error when starting sync. Trying again in 1 second...`);

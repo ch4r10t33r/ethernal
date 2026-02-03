@@ -29,7 +29,7 @@ module.exports = async () => {
         const completedJobs = await queue.getCompleted();
         const latestJob = completedJobs[0];
 
-        if (!latestJob) {
+        if (!latestJob || latestJob.timestamp == null) {
             continue;
         }
         if (latestJob.timestamp < Date.now() - maxTimeWithoutEnqueuedJob() * 1000) {
@@ -42,11 +42,10 @@ module.exports = async () => {
         const queue = new Queue(queueName, { connection });
         const completedJobs = await queue.getCompleted();
 
-        const averageProcessingTime = completedJobs.length === 0
+        const validJobs = completedJobs.filter(j => j && j.finishedOn != null && j.processedOn != null);
+        const averageProcessingTime = validJobs.length === 0
             ? 0
-            : completedJobs.reduce((a, b) => {
-                return b && b.finishedOn ? a + (b.finishedOn - b.processedOn) / 1000 : a;
-            }, 0) / completedJobs.length;
+            : validJobs.reduce((a, b) => a + (b.finishedOn - b.processedOn) / 1000, 0) / validJobs.length;
 
         const waitingJobCount = await queue.getWaitingCount();
         const delayedJobCount = await queue.getDelayedCount();

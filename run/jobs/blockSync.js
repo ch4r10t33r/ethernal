@@ -9,6 +9,7 @@ const { ProviderConnector } = require('../lib/rpc');
 const { Workspace, Explorer, StripeSubscription, RpcHealthCheck, IntegrityCheck, Block, OrbitChainConfig, OpChainConfig, OpBatch, sequelize } = require('../models');
 const db = require('../lib/firebase');
 const logger = require('../lib/logger');
+const { isSelfHosted } = require('../lib/flags');
 const { processRawRpcObject } = require('../lib/utils');
 const { enqueue, bulkEnqueue } = require('../lib/queue');
 const RateLimiter = require('../lib/rateLimiter');
@@ -74,7 +75,7 @@ module.exports = async job => {
         if (workspace.rpcHealthCheckEnabled && workspace.rpcHealthCheck && !workspace.rpcHealthCheck.isReachable)
             return 'RPC is not reachable';
 
-        if (!workspace.explorer.stripeSubscription)
+        if (!isSelfHosted() && !workspace.explorer.stripeSubscription)
             return 'No active subscription';
     }
 

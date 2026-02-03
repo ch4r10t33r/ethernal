@@ -24,6 +24,8 @@ initializeApp();
 
 app.set('trust proxy', true);
 
+app.get('/health', (req, res) => res.sendStatus(200));
+
 app.use(express.json({
     limit: '25mb',
     verify: function(req, res, buf) {

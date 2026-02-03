@@ -10,6 +10,7 @@ const { processRawRpcObject } = require('../lib/utils');
 const { enqueue } = require('../lib/queue');
 const RateLimiter = require('../lib/rateLimiter');
 const logger = require('../lib/logger');
+const { isSelfHosted } = require('../lib/flags');
 const { reportRpcFailure } = require('../lib/syncHelpers');
 const {
     isTransactionDepositedEvent,
@@ -105,7 +106,7 @@ module.exports = async job => {
     if (workspace.rpcHealthCheck && workspace.rpcHealthCheckEnabled && !workspace.rpcHealthCheck.isReachable)
         return 'RPC is unreachable';
 
-    if (!workspace.explorer.stripeSubscription)
+    if (!isSelfHosted() && !workspace.explorer.stripeSubscription)
         return 'No active subscription';
 
     let limiter;
