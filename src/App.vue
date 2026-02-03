@@ -352,11 +352,27 @@ onMounted(() => {
         })
         .catch(error => {
             console.log('error', error);
-            envStore.setMainDomain(error.response.data.mainDomain);
+            const mainDomain = error.response?.data?.mainDomain;
+            if (mainDomain) {
+                envStore.setMainDomain(mainDomain);
+            }
+
+            // Prevent infinite redirect loop - don't redirect to same domain
+            if (mainDomain && window.location.host === mainDomain) {
+                console.warn('Explorer not found for this domain, displaying default view');
+                isOverlayActive.value = false;
+                routerComponent.value = 'router-view';
+                return;
+            }
+
             if (error.response && error.response.status === 404) {
                 document.location.href = `/`;
+            } else if (mainDomain) {
+                document.location.assign(`//${mainDomain}`);
             } else {
-                document.location.assign(`//${envStore.mainDomain}`);
+                // No mainDomain to redirect to, show default view
+                isOverlayActive.value = false;
+                routerComponent.value = 'router-view';
             }
         });
 });
