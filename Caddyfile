@@ -69,9 +69,7 @@
     }
 
     handle {
-        reverse_proxy tryethernal.netlify.app {
-            header_up Host tryethernal.netlify.app
-        }
+        reverse_proxy frontend:8080
     }
 
     encode gzip
