@@ -11,7 +11,7 @@ help:
 	@echo ""
 	@echo "Local Build (builds from source code):"
 	@echo "  make build-local   - Build Docker images from local source"
-	@echo "  make start-local   - Build and start all services locally"
+	@echo "  make start-local   - Build and start all services locally (prompts for domain/port)"
 	@echo "  make stop-local    - Stop locally-built services"
 	@echo "  make update-local  - Rebuild and restart from local source"
 	@echo "  make nuke-local    - Remove everything including volumes"
@@ -78,8 +78,8 @@ build-local:
 
 start-local:
 	@if [ ! -f run/.env.prod ] || [ ! -f pm2-server/.env.prod ] || [ ! -f .env.docker-compose.prod ]; then \
-		echo "Generating environment and config files (APP_URL=localhost, port 80)..."; \
-		APP_URL=localhost EXPOSED_PORT=80 ENABLE_SSL=false bash ./generate-env-files.sh; \
+		echo "Generating environment and config files..."; \
+		bash ./generate-env-files.sh; \
 	else \
 		echo "All environment and config files already exist. Skipping generation."; \
 	fi
