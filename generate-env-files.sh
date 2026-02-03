@@ -55,22 +55,26 @@ HASHED_PASS="md5$(echo -n "$HASH_INPUT" | md5sum | awk '{print $1}')"
 echo ""
 echo "######### Starting Ethernal Setup #########"
 echo ""
-# Prompt for values
-read -p "Enter domain name (APEX, without www) or server IP address: " APP_URL
+# Non-interactive: use APP_URL and EXPOSED_PORT from env (e.g. make start-local with APP_URL=localhost)
+if [ -z "${APP_URL:-}" ]; then
+  read -p "Enter domain name (APEX, without www) or server IP address: " APP_URL
+fi
 # Strip http:// or https:// from APP_URL if present
 APP_URL=${APP_URL#http://}
 APP_URL=${APP_URL#https://}
 
-# Validate domain or IP
-if ! is_valid_domain "$APP_URL" && \
+# Validate domain or IP (allow localhost for local dev)
+if [ "$APP_URL" != "localhost" ] && [ "$APP_URL" != "127.0.0.1" ] && \
+   ! is_valid_domain "$APP_URL" && \
    ! [[ $APP_URL =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] && \
    ! [[ $APP_URL =~ ^([0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4}$ ]]; then
   echo "Invalid domain/ip"
   exit 1
 fi
 
-# Always ask for port, default to 80, validate
-read -p "Enter port to serve the app on [80]: " EXPOSED_PORT
+if [ -z "${EXPOSED_PORT:-}" ]; then
+  read -p "Enter port to serve the app on [80]: " EXPOSED_PORT
+fi
 EXPOSED_PORT="${EXPOSED_PORT:-80}"
 if ! [[ $EXPOSED_PORT =~ ^[0-9]+$ ]] || [ "$EXPOSED_PORT" -lt 1 ] || [ "$EXPOSED_PORT" -gt 65535 ]; then
   echo "Invalid port"
@@ -84,11 +88,11 @@ else
   ETHERNAL_HOST="$APP_URL:$EXPOSED_PORT"
 fi
 
-# Ask about SSL if domain is valid
+# Ask about SSL if domain is valid (skip if non-interactive / ENABLE_SSL already set)
 SSL_ENABLED="true"
-if is_valid_domain "$APP_URL"; then
+if [ -z "${ENABLE_SSL:-}" ] && is_valid_domain "$APP_URL"; then
   read -p "Do you want to enable SSL (HTTPS) for this domain? [Y/n]: " ENABLE_SSL
-  case "$ENABLE_SSL" in
+  case "${ENABLE_SSL}" in
     [nN]|[nN][oO])
       SSL_ENABLED="false"
       ;;
@@ -96,6 +100,8 @@ if is_valid_domain "$APP_URL"; then
       SSL_ENABLED="true"
       ;;
   esac
+elif [ "${ENABLE_SSL:-}" = "false" ] || [ "${ENABLE_SSL:-}" = "n" ]; then
+  SSL_ENABLED="false"
 fi
 
 # Compose env file contents

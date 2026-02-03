@@ -1,83 +1,23 @@
-{
-    storage file_system {
-        root /data
-    }
-
-    on_demand_tls {
-        ask http://backend:8888/api/caddy/validDomain
-    }
-}
-
-(shared_routes) {
-    header {
-        Apx-Incoming-Host "{host}"
-    }
-
-    @checkVerifyStatus {
-        path /api
-        query module=contract
-        query action=checkverifystatus
-        query apikey=*
-    }
-    handle @checkVerifyStatus {
-        rewrite * /api/contracts/verificationStatus
-        reverse_proxy backend:8888
-    }
-
-    @getSourceCode {
-        path /api
-        query module=contract
-        query action=getsourcecode
-        query apikey=*
-    }
-    handle @getSourceCode {
-        rewrite * /api/contracts/sourceCode
-        reverse_proxy backend:8888
-    }
-
-    @getAbi {
-        path /api
-        query module=contract
-        query action=getabi
-        query apikey=*
-    }
-    handle @getAbi {
-        rewrite * /api/contracts/getabi
-        reverse_proxy backend:8888
-    }
-
-    @fallbackApi {
-        path /api*
-    }
-    handle @fallbackApi {
-        reverse_proxy backend:8888
+:80 {
+    handle /api/* {
+      reverse_proxy backend:8888
     }
 
     handle_path /bull* {
-        reverse_proxy backend:8888
+      reverse_proxy backend:8888
     }
 
+    # WebSocket traffic (Soketi)
     handle /app* {
-        reverse_proxy ethernal-soketi:6001 {
-            header_up Upgrade "websocket"
-            header_up Connection "Upgrade"
-        }
+      reverse_proxy soketi:6001 {
+        header_up Upgrade "websocket"
+        header_up Connection "Upgrade"
+      }
     }
 
     handle {
-        reverse_proxy frontend:8080
+      reverse_proxy frontend:8080
     }
 
     encode gzip
-}
-
-:80 {
-    import shared_routes
-}
-
-:443 {
-    tls {
-        on_demand
-    }
-    import shared_routes
 }

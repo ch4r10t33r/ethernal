@@ -1,4 +1,4 @@
-.PHONY: help start stop nuke update info build-local start-local stop-local update-local nuke-local
+.PHONY: help start stop nuke update info build-local start-local stop-local update-local nuke-local db-drop-local
 
 help:
 	@echo "Ethernal Docker Management"
@@ -15,6 +15,7 @@ help:
 	@echo "  make stop-local    - Stop locally-built services"
 	@echo "  make update-local  - Rebuild and restart from local source"
 	@echo "  make nuke-local    - Remove everything including volumes"
+	@echo "  make db-drop-local - Force-drop DB only (keeps volume; DB recreated on next start)"
 	@echo ""
 	@echo "Other:"
 	@echo "  make info      - Show connection info"
@@ -25,7 +26,7 @@ start:
 		docker compose -f docker-compose.prod.yml --env-file .env.docker-compose.prod down --remove-orphans; \
 	fi
 	@if [ ! -f run/.env.prod ] || [ ! -f pm2-server/.env.prod ] || [ ! -f .env.docker-compose.prod ]; then \
-		echo "Generating environment and config files..."; \
+		echo "Generating environment and config files (interactive: domain and port)..."; \
 		bash ./generate-env-files.sh; \
 	else \
 		echo "All environment and config files already exist. Skipping generation."; \
@@ -77,8 +78,8 @@ build-local:
 
 start-local:
 	@if [ ! -f run/.env.prod ] || [ ! -f pm2-server/.env.prod ] || [ ! -f .env.docker-compose.prod ]; then \
-		echo "Generating environment and config files..."; \
-		bash ./generate-env-files.sh; \
+		echo "Generating environment and config files (APP_URL=localhost, port 80)..."; \
+		APP_URL=localhost EXPOSED_PORT=80 ENABLE_SSL=false bash ./generate-env-files.sh; \
 	else \
 		echo "All environment and config files already exist. Skipping generation."; \
 	fi
@@ -140,9 +141,26 @@ update-local:
 
 nuke-local:
 	@echo "Nuking everything: containers, networks, volumes, and generated env/config files..."
-	docker compose -f docker-compose.local.yml down --remove-orphans --volumes
+	@if [ -f .env.docker-compose.prod ]; then \
+		docker compose -f docker-compose.local.yml --env-file .env.docker-compose.prod down --remove-orphans --volumes; \
+	else \
+		docker compose -f docker-compose.local.yml down --remove-orphans --volumes; \
+	fi
+	@VOLUME_NAME=$$(basename $$(pwd))_db; \
+	echo "Removing volume $$VOLUME_NAME if present..."; \
+	docker volume rm $$VOLUME_NAME 2>/dev/null || true
 	rm -f .env.prod run/.env.prod pm2-server/.env.prod
 	rm -f pgbouncer/.env.pgbouncer.prod pgbouncer/userlist.txt pgbouncer/pgbouncer.ini
+
+# Force-drop the ethernal database (keeps volume; on next start-local the DB will be recreated). Requires postgres to be running.
+db-drop-local:
+	@if [ ! -f run/.env.prod ]; then echo "Run make start-local once to generate run/.env.prod"; exit 1; fi
+	@DB_NAME=$$(grep '^DB_NAME=' run/.env.prod | cut -d '=' -f2); \
+	echo "Dropping database \"$$DB_NAME\"..."; \
+	docker compose -f docker-compose.local.yml --env-file .env.docker-compose.prod exec -T postgres psql -U postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$$DB_NAME' AND pid <> pg_backend_pid();" 2>/dev/null; \
+	docker compose -f docker-compose.local.yml --env-file .env.docker-compose.prod exec -T postgres psql -U postgres -c "DROP DATABASE IF EXISTS \"$$DB_NAME\";"; \
+	docker compose -f docker-compose.local.yml --env-file .env.docker-compose.prod exec -T postgres psql -U postgres -c "CREATE DATABASE \"$$DB_NAME\";"; \
+	echo "Database dropped and recreated. Run migrations (or restart backend) to reapply schema."
 
 # ============ INFO ============
 
