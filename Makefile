@@ -90,8 +90,18 @@ start-local:
 	docker compose -f docker-compose.local.yml build
 	@echo "Starting up the application..."
 	docker compose -f docker-compose.local.yml --env-file .env.docker-compose.prod up -d
-	@echo "Waiting for backend container to be healthy..."
-	@docker compose -f docker-compose.local.yml --env-file .env.docker-compose.prod exec backend sh -c 'until nc -z localhost 8888; do sleep 1; done'
+	@echo "Waiting for backend to be ready (up to 180s)..."
+	@i=0; while [ $$i -lt 180 ]; do \
+		if docker compose -f docker-compose.local.yml --env-file .env.docker-compose.prod exec -T backend sh -c 'nc -z localhost 8888' 2>/dev/null; then \
+			echo "Backend is ready."; break; \
+		fi; \
+		i=$$((i+1)); \
+		if [ $$i -eq 180 ]; then \
+			echo "Error: Backend did not become ready in 180s. Check 'docker compose -f docker-compose.local.yml logs backend'. On low-memory hosts (e.g. 4GB) the stack may need more time or swap."; \
+			exit 1; \
+		fi; \
+		sleep 1; \
+	done
 	@DB_NAME=$$(grep '^DB_NAME=' run/.env.prod | cut -d '=' -f2); \
 	if docker compose -f docker-compose.local.yml exec -T postgres psql -U postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$$DB_NAME'" | grep -q 1; then \
 		echo "Database '$$DB_NAME' already exists. Skipping creation."; \
@@ -112,8 +122,17 @@ update-local:
 	docker compose -f docker-compose.local.yml build
 	@echo "Recreating containers with new images..."
 	docker compose -f docker-compose.local.yml --env-file .env.docker-compose.prod up -d --force-recreate
-	@echo "Waiting for backend container to be healthy..."
-	@docker compose -f docker-compose.local.yml --env-file .env.docker-compose.prod exec backend sh -c 'until nc -z localhost 8888; do sleep 1; done'
+	@echo "Waiting for backend to be ready (up to 180s)..."
+	@i=0; while [ $$i -lt 180 ]; do \
+		if docker compose -f docker-compose.local.yml --env-file .env.docker-compose.prod exec -T backend sh -c 'nc -z localhost 8888' 2>/dev/null; then \
+			echo "Backend is ready."; break; \
+		fi; \
+		i=$$((i+1)); \
+		if [ $$i -eq 180 ]; then \
+			echo "Error: Backend did not become ready in 180s. Check backend logs."; exit 1; \
+		fi; \
+		sleep 1; \
+	done
 	@echo "Running sequelize migrations in backend container..."
 	docker compose -f docker-compose.local.yml --env-file .env.docker-compose.prod exec backend npx sequelize db:migrate
 	@echo "Running sequelize seeds in backend container..."

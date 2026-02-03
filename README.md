@@ -28,6 +28,7 @@ Run your own Ethernal instance on your infrastructure, with full control over yo
 - [Docker](https://www.docker.com/) & [Docker Compose](https://docs.docker.com/compose/)
 - [OpenSSL](https://www.openssl.org/) (for environment file generation)
 - A domain name or server IP
+- **Memory:** The full stack runs 12 containers. On low-memory hosts (e.g. 4GB RAM), startup can be slow or hit OOM. Adding swap (e.g. 2GB) is recommended: `sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile`. If the backend fails to become ready, check `docker compose -f docker-compose.local.yml logs backend` (or your compose file) for OOM kills.
 
 ### 1. Clone the Repository
 
@@ -110,10 +111,18 @@ If you need additional endpoints or have suggestions for improvements, **pull re
 
 ## 🛠️ Useful Makefile Commands
 
+**Remote images (pull from Docker Hub):**
 - `make start` – Start or restart Ethernal (with env/config generation)
 - `make stop` – Stop and clean up all containers and networks
 - `make update` – Pull latest images and apply migrations/seeds
-- `make nuke` – Remove all containers, volumes, and generated config files (all data will be list)
+- `make nuke` – Remove all containers, volumes, and generated config files (all data will be lost)
+
+**Local build (build from source, e.g. for development or self-hosted):**
+- `make start-local` – Generate env files if needed, then build and start from local source (`docker-compose.local.yml`). Backend is waited on for up to 180s.
+- `make stop-local` – Stop locally-built services
+- `make update-local` – Rebuild images and restart from local source
+
+On low-memory hosts, the backend may take a while to become ready; see the memory note in **Prerequisites**.
 
 ---
 
