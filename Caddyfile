@@ -4,15 +4,11 @@
     }
 
     on_demand_tls {
-        ask http://ethernal.internal:8080/api/caddy/validDomain
+        ask http://backend:8888/api/caddy/validDomain
     }
 }
 
-:443 {
-    tls {
-        on_demand
-    }
-
+(shared_routes) {
     header {
         Apx-Incoming-Host "{host}"
     }
@@ -25,7 +21,7 @@
     }
     handle @checkVerifyStatus {
         rewrite * /api/contracts/verificationStatus
-        reverse_proxy ethernal.internal:8080
+        reverse_proxy backend:8888
     }
 
     @getSourceCode {
@@ -36,7 +32,7 @@
     }
     handle @getSourceCode {
         rewrite * /api/contracts/sourceCode
-        reverse_proxy ethernal.internal:8080
+        reverse_proxy backend:8888
     }
 
     @getAbi {
@@ -47,18 +43,18 @@
     }
     handle @getAbi {
         rewrite * /api/contracts/getabi
-        reverse_proxy ethernal.internal:8080
+        reverse_proxy backend:8888
     }
 
     @fallbackApi {
         path /api*
     }
     handle @fallbackApi {
-        reverse_proxy ethernal.internal:8080
+        reverse_proxy backend:8888
     }
 
     handle_path /bull* {
-        reverse_proxy ethernal.internal:8080
+        reverse_proxy backend:8888
     }
 
     handle /app* {
@@ -73,4 +69,15 @@
     }
 
     encode gzip
+}
+
+:80 {
+    import shared_routes
+}
+
+:443 {
+    tls {
+        on_demand
+    }
+    import shared_routes
 }
