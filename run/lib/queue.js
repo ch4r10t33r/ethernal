@@ -50,7 +50,8 @@ const enqueue = (queueName, jobName, data, priority = 1, repeat, delay, unique) 
  * ]);
  */
 const bulkEnqueue = (queueName, jobData, priority = 10, maxBatchSize = MAX_BATCH_SIZE) => {
-    if (!queueName || !jobData || !jobData.length || !queues[queueName]) return;
+    if (!queueName || !jobData || !jobData.length || !queues[queueName])
+        return Promise.resolve();
     const promises = [];
     const batchedJobs = [];
     for (let i = 0; i < jobData.length; i += maxBatchSize)

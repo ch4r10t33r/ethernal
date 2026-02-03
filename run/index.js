@@ -3,8 +3,9 @@ const logger = require('./lib/logger');
 const app = require('./app');
 
 // Run migrations before accepting traffic so schema is ready (e.g. for pm2 syncExplorers).
+// Use __dirname so migrations run from backend dir (finds .sequelizerc whether started from repo root or /app in Docker).
 try {
-    execSync('sequelize db:migrate', { stdio: 'inherit', env: process.env });
+    execSync('sequelize db:migrate', { stdio: 'inherit', env: process.env, cwd: __dirname });
 } catch (e) {
     logger.error('Migrations failed', { error: e.message });
     process.exit(1);

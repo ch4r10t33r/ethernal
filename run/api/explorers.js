@@ -680,7 +680,8 @@ router.post('/:id/startTrial', authMiddleware, async (req, res, next) => {
 
 router.post('/syncExplorers', secretMiddleware, async (req, res, next) => {
     try {
-        const explorers = await Explorer.findAll();
+        // Only select id/slug so this endpoint never depends on sync-failure columns (safe if migrations not yet applied).
+        const explorers = await Explorer.findAll({ attributes: ['id', 'slug'] });
 
         const jobs = [];
         for (let i = 0; i < explorers.length; i++) {

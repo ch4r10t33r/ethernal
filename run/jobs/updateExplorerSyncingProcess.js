@@ -19,31 +19,46 @@ module.exports = async job => {
     if (!data.explorerSlug)
         return 'Missing parameter.';
 
-    const explorer = await Explorer.findOne({
-        where: { slug: data.explorerSlug },
-        include: [
-            {
-                model: Workspace,
-                as: 'workspace',
-                required: false,
-                include: {
-                    model: RpcHealthCheck,
-                    as: 'rpcHealthCheck',
-                    required: false
+    let explorer;
+    try {
+        explorer = await Explorer.findOne({
+            where: { slug: data.explorerSlug },
+            include: [
+                {
+                    model: Workspace,
+                    as: 'workspace',
+                    required: false,
+                    include: {
+                        model: RpcHealthCheck,
+                        as: 'rpcHealthCheck',
+                        required: false
+                    }
+                },
+                {
+                    model: StripeSubscription,
+                    as: 'stripeSubscription',
+                    required: false,
+                    include: {
+                        model: StripePlan,
+                        as: 'stripePlan',
+                        required: false
+                    }
                 }
-            },
-            {
-                model: StripeSubscription,
-                as: 'stripeSubscription',
-                required: false,
-                include: {
-                    model: StripePlan,
-                    as: 'stripePlan',
-                    required: false
-                }
-            }
-        ]
-    });
+            ]
+        });
+    } catch (dbError) {
+        const isMissingColumn = dbError.name === 'SequelizeDatabaseError' &&
+            (dbError.message || '').includes('does not exist');
+        if (isMissingColumn) {
+            logger.warn({
+                message: 'Explorer sync job skipped: DB missing sync columns (run migrations)',
+                explorerSlug: data.explorerSlug,
+                error: dbError.message
+            });
+            return 'Skipped: run backend migrations (sync columns missing).';
+        }
+        throw dbError;
+    }
 
     try {
 
