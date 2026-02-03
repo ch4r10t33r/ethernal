@@ -76,15 +76,15 @@ build-local:
 	docker compose -f docker-compose.local.yml build
 
 start-local:
-	@if [ -n "$$(docker compose -f docker-compose.local.yml ps -q)" ]; then \
-		echo "Stopping and removing running containers..."; \
-		docker compose -f docker-compose.local.yml --env-file .env.docker-compose.prod down --remove-orphans; \
-	fi
 	@if [ ! -f run/.env.prod ] || [ ! -f pm2-server/.env.prod ] || [ ! -f .env.docker-compose.prod ]; then \
 		echo "Generating environment and config files..."; \
 		bash ./generate-env-files.sh; \
 	else \
 		echo "All environment and config files already exist. Skipping generation."; \
+	fi
+	@if [ -n "$$(docker compose -f docker-compose.local.yml --env-file .env.docker-compose.prod ps -q)" ]; then \
+		echo "Stopping and removing running containers..."; \
+		docker compose -f docker-compose.local.yml --env-file .env.docker-compose.prod down --remove-orphans; \
 	fi
 	@echo "Building Docker images from local source..."
 	docker compose -f docker-compose.local.yml build
