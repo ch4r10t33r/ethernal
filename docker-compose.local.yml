@@ -70,6 +70,8 @@ services:
       - redis
     restart: always
     env_file: ./run/.env.prod
+    environment:
+      - SELF_HOSTED=true
 
   high_priority_worker:
     networks:
@@ -82,6 +84,8 @@ services:
     image: ethernal-backend:local
     command: node workers/highPriority.js
     env_file: ./run/.env.prod
+    environment:
+      - SELF_HOSTED=true
 
   medium_priority_worker:
     networks:
@@ -94,6 +98,8 @@ services:
     image: ethernal-backend:local
     command: node workers/mediumPriority.js
     env_file: ./run/.env.prod
+    environment:
+      - SELF_HOSTED=true
 
   low_priority_worker:
     networks:
@@ -106,6 +112,8 @@ services:
     image: ethernal-backend:local
     command: node workers/lowPriority.js
     env_file: ./run/.env.prod
+    environment:
+      - SELF_HOSTED=true
 
   pm2:
     networks:

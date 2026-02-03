@@ -884,6 +884,31 @@ const createAdmin = async (email, password) => {
 const canSetupAdmin = async () => {
     const userCount = await User.count();
     return userCount === 0;
+};
+
+/**
+ * Returns the single admin user for self-hosted instances (no auth required).
+ * @returns {Promise<Object|null>} User object with apiKey, stripeCustomerId or null if no user
+ */
+const getSelfHostedAdminUser = async () => {
+    const user = await User.findOne({
+        order: [['id', 'ASC']],
+        attributes: ['id', 'email', 'firebaseUserId', 'apiKey', 'stripeCustomerId', 'plan', 'isPremium', 'cryptoPaymentEnabled']
+    });
+    return user ? user.toJSON() : null;
+};
+
+/**
+ * Returns the first workspace for the self-hosted admin (for no-auth local access).
+ * @returns {Promise<Object|null>} Workspace object or null
+ */
+const getSelfHostedAdminWorkspace = async () => {
+    const user = await User.findOne({
+        order: [['id', 'ASC']],
+        include: [{ model: Workspace, as: 'workspaces', where: { pendingDeletion: false }, required: false }]
+    });
+    if (!user || !user.workspaces || user.workspaces.length === 0) return null;
+    return user.workspaces[0].toJSON();
 }
 
 /**
@@ -5061,6 +5086,8 @@ module.exports = {
     getTopTokensByHolders: getTopTokensByHolders,
     createAdmin: createAdmin,
     canSetupAdmin: canSetupAdmin,
+    getSelfHostedAdminUser: getSelfHostedAdminUser,
+    getSelfHostedAdminWorkspace: getSelfHostedAdminWorkspace,
     isValidExplorerDomain: isValidExplorerDomain,
     getImportedAccounts: getImportedAccounts,
     getFilteredNativeAccounts: getFilteredNativeAccounts,

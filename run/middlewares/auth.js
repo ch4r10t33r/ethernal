@@ -10,13 +10,14 @@ const db = require('../lib/firebase');
 const { sanitize }  = require('../lib/utils');
 const { decode, decrypt } = require('../lib/crypto');
 const logger = require('../lib/logger');
+const { isSelfHosted } = require('../lib/flags');
 
 const identifySentryUser = (user) => {
     Sentry.setUser({ id, email } = user);
 };
 
 module.exports = async (req, res, next) => {
-    if (req.user) next();
+    if (req.user) return next();
 
     const pusherData =  sanitize({ socket_id: req.body.socket_id, channel_name: req.body.channel_name, firebaseAuthToken: req.body.firebaseAuthToken, firebaseUserId: req.body.firebaseUserId });
     const authorizationHeader = req.headers['authorization'];
@@ -26,6 +27,18 @@ module.exports = async (req, res, next) => {
         let firebaseUser;
 
         req.body.data = req.body.data || {};
+
+        // Self-hosted / local: no auth required, use single admin user
+        if (isSelfHosted()) {
+            const user = await db.getSelfHostedAdminUser();
+            if (!user)
+                throw new Error('No admin user. Complete setup first.');
+            req.body.data.user = user;
+            req.body.data.uid = user.firebaseUserId;
+            req.query.firebaseUserId = user.firebaseUserId;
+            identifySentryUser(user);
+            return next();
+        }
 
         if (authorizationHeader) {
             const headerSplit = authorizationHeader.split('Bearer ');

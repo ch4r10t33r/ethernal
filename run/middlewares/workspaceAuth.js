@@ -9,14 +9,31 @@ const db = require('../lib/firebase');
 const { sanitize, getEnv }  = require('../lib/utils');
 const { decrypt, decode, encode } = require('../lib/crypto');
 const logger = require('../lib/logger');
+const { isSelfHosted } = require('../lib/flags');
 
-module.exports = async (req, res, next) => {
+module.exports = async (req, res, next) =>  {
     let firebaseUser = {};
     const pusherData =  sanitize({ socket_id: req.body.socket_id, channel_name: req.body.channel_name, firebaseAuthToken: req.body.firebaseAuthToken, firebaseUserId: req.body.firebaseUserId, workspace: req.body.workspace });
     const authorizationHeader = req.headers['authorization'];
     const data = { ...req.body.data, ...req.query, ...pusherData };
 
     try {
+        // Self-hosted / local: no auth required, use admin's first workspace (or by name if provided)
+        if (isSelfHosted()) {
+            const user = await db.getSelfHostedAdminUser();
+            if (!user)
+                return res.sendStatus(404);
+            const workspace = data.workspace
+                ? await db.getWorkspaceByName(user.firebaseUserId, data.workspace)
+                : await db.getSelfHostedAdminWorkspace();
+            if (!workspace)
+                return res.sendStatus(404);
+            req.query.firebaseUserId = user.firebaseUserId;
+            req.query.workspace = workspace;
+            req.query.authenticated = true;
+            return next();
+        }
+
         if (!data.workspace)
             throw new Error('Missing parameter');
 
