@@ -138,13 +138,13 @@ module.exports = (sequelize, DataTypes) => {
           });
           analytics.shutdown();
           await explorer.startSync();
-          if (explorer.workspace.integrityCheckStartBlockNumber)
-            return enqueue('blockSync', `blockSync-${explorer.workspace.id}-${explorer.workspace.integrityCheckStartBlockNumber}`, {
-              userId: explorer.admin.firebaseUserId,
-              workspace: explorer.workspace.name,
-              blockNumber: explorer.workspace.integrityCheckStartBlockNumber,
-              source: 'subscriptionStart'
-            }, 1);
+          const startBlock = explorer.workspace.integrityCheckStartBlockNumber ?? 0;
+          return enqueue('blockSync', `blockSync-${explorer.workspace.id}-${startBlock}`, {
+            userId: explorer.admin.firebaseUserId,
+            workspace: explorer.workspace.name,
+            blockNumber: startBlock,
+            source: 'subscriptionStart'
+          }, 1);
         };
         return options.transaction ? options.transaction.afterCommit(afterCreateFn) : afterCreateFn();
       },
